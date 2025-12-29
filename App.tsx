@@ -1,20 +1,20 @@
-import {Text,View,StyleSheet} from 'react-native'
+import { NavigationContainer } from "@react-navigation/native";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { enableScreens } from 'react-native-screens';
 
+import homeScreen from './src/screens/HomeScreen'
+import GameScreen from './src/screens/GameScreen'
+
+enableScreens(false);
+
+const stack = createNativeStackNavigator();
 export default function App(){
   return(
-    <View style={styles.container}>
-      <Text style={styles.text}>Battelship</Text>
-    </View>
+    <NavigationContainer>
+      <stack.Navigator>
+        <stack.Screen name="Home" component={homeScreen}/>
+        <stack.Screen name="Game" component={GameScreen}/>
+      </stack.Navigator>
+    </NavigationContainer>
   );
 }
-const styles = StyleSheet.create({
-  container:{
-    flex:1,
-    justifyContent:'center',
-    alignItems:'center'
-  },
-  text:{
-    fontSize:24,
-    fontWeight:'bold'
-  }
-});
