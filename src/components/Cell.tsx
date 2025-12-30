@@ -1,22 +1,14 @@
 import { TouchableOpacity, Text, StyleSheet } from 'react-native';
-import { useState } from 'react';
 
 type CellProps = {
+  value: string;
   onPress: () => void;
 };
 
-export default function Cell({ onPress }: CellProps) {
-  const [clicked, setClicked] = useState(false);
-
+export default function Cell({ value, onPress }: CellProps) {
   return (
-    <TouchableOpacity
-      style={styles.cell}
-      onPress={() => {
-        setClicked(true);
-        onPress();
-      }}
-    >
-      <Text>{clicked ? 'X' : ''}</Text>
+    <TouchableOpacity style={styles.cell} onPress={onPress}>
+      <Text>{value}</Text>
     </TouchableOpacity>
   );
 }
