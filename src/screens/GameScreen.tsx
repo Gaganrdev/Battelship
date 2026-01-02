@@ -8,8 +8,10 @@ export default function GameScreen({ route }: any) {
 
   const ownBoardRef = useRef<BoardHandle | null>(null);
   const opponentBoardRef = useRef<BoardHandle | null>(null);
-  const [isMyTurn, setIsMyTurn] = useState<boolean>(mode === 'host');
+  const [isMyTurn, setIsMyTurn] = useState<boolean>(false);
   const [opponentReady, setOpponentReady] = useState<boolean>(false);
+  const [ownReady, setOwnReady] = useState<boolean>(false);
+  const [placingInfo, setPlacingInfo] = useState<{ size: number | null; index: number | null; orientation: 'horizontal' | 'vertical' | null }>({ size: null, index: null, orientation: null });
 
     useEffect(() => {
       const onMessage = (msg: string) => {
@@ -36,6 +38,10 @@ export default function GameScreen({ route }: any) {
           } else if (data.type === 'ready') {
             // opponent finished placement
             setOpponentReady(true);
+            // if both ready, decide who starts
+            if (ownReady) {
+              setIsMyTurn(mode === 'host');
+            }
           }
         } catch (e) {
           console.log('Received raw message:', msg);
@@ -44,11 +50,9 @@ export default function GameScreen({ route }: any) {
 
       if (mode === 'host') {
         hostGame(onMessage);
-        setIsMyTurn(true);
       } else if (mode === 'join') {
         // For join, user should provide IP; using localhost for now
         joinGame('localhost', onMessage);
-        setIsMyTurn(false);
       }
 
       return () => {
@@ -56,7 +60,7 @@ export default function GameScreen({ route }: any) {
       };
     }, [mode]);
 
-    function handleAction(action: { type: string; index: number; hit?: boolean }) {
+    function handleAction(action: any) {
       console.log('Outgoing action:', action);
       // this handler is used by opponentBoard for sending attacks
       if (action.type === 'attack') {
@@ -75,19 +79,54 @@ export default function GameScreen({ route }: any) {
       }
     }
 
+    // handle actions from our own board (placement / ready)
+    function handleOwnAction(action: any) {
+      if (action.type === 'ready') {
+        setOwnReady(true);
+        sendMessage({ type: 'ready' });
+        // if opponent already ready, start turns
+        if (opponentReady) {
+          setIsMyTurn(mode === 'host');
+        }
+      } else if (action.type === 'placing') {
+        setPlacingInfo({ size: action.size ?? null, index: action.index ?? null, orientation: action.orientation ?? null });
+      } else {
+        // forward placement actions to opponent if needed
+        sendMessage(action);
+      }
+    }
+
   return (
     <View style={styles.container}>
-      <Text style={styles.text}>Place 5 ships by tapping cells</Text>
+      <Text style={styles.text}>Place ships by tapping cells</Text>
 
       <Text style={{ fontSize: 18, marginTop: 8, color: isMyTurn ? 'green' : 'gray' }}>
-        {isMyTurn ? "Your Turn" : "Opponent's Turn"}
+        {isMyTurn ? 'Your Turn' : "Opponent's Turn"}
       </Text>
 
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
+        <Text style={{ marginRight: 12 }}>Orientation:</Text>
+        <Text style={{ marginRight: 12 }}>{placingInfo.orientation ?? '-'}</Text>
+        <Text>Placing ship size: {placingInfo.size ?? '-'}</Text>
+      </View>
+
       <Text style={{ marginTop: 10 }}>Your Board</Text>
-      <Board ref={ownBoardRef} onAction={() => {}} />
+      <Board ref={ownBoardRef} onAction={handleOwnAction} />
 
       <Text style={{ marginTop: 16 }}>Opponent Board</Text>
-      <Board ref={opponentBoardRef} isOpponentBoard disabled={!isMyTurn} onAction={handleAction} />
+      <View style={{ width: 320, height: 320, position: 'relative' }}>
+        <Board ref={opponentBoardRef} isOpponentBoard disabled={!isMyTurn} onAction={handleAction} />
+        {!isMyTurn && opponentReady && ownReady && (
+          <View style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'center', alignItems: 'center' }}>
+            <Text style={{ color: '#fff', fontSize: 18 }}>Waiting for opponent...</Text>
+          </View>
+        )}
+      </View>
+
+      <View style={{ flexDirection: 'row', marginTop: 12 }}>
+        <Text style={{ marginRight: 12 }}>You: {ownReady ? 'Ready' : 'Not Ready'}</Text>
+        <Text>Opponent: {opponentReady ? 'Ready' : 'Not Ready'}</Text>
+      </View>
     </View>
   );
 }
