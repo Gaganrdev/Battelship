@@ -79,11 +79,15 @@ export default function GameScreen({ route }: any) {
     <View style={styles.container}>
       <Text style={styles.text}>Place 5 ships by tapping cells</Text>
 
+      <Text style={{ fontSize: 18, marginTop: 8, color: isMyTurn ? 'green' : 'gray' }}>
+        {isMyTurn ? "Your Turn" : "Opponent's Turn"}
+      </Text>
+
       <Text style={{ marginTop: 10 }}>Your Board</Text>
       <Board ref={ownBoardRef} onAction={() => {}} />
 
       <Text style={{ marginTop: 16 }}>Opponent Board</Text>
-      <Board ref={opponentBoardRef} isOpponentBoard onAction={handleAction} />
+      <Board ref={opponentBoardRef} isOpponentBoard disabled={!isMyTurn} onAction={handleAction} />
     </View>
   );
 }

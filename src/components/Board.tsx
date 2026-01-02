@@ -10,7 +10,8 @@ type BoardProps = {
   onAction?: (action: BoardAction) => void;
   // If true, this board represents the opponent's board (used to send attacks)
   isOpponentBoard?: boolean;
-  // When false, board is interactive for placement/receiving attacks
+  // When true, board is disabled (no interaction)
+  disabled?: boolean;
 };
 
 export type BoardHandle = {
@@ -18,7 +19,7 @@ export type BoardHandle = {
   applyAttackResult: (index: number, hit: boolean) => void;
 };
 
-const Board = forwardRef<BoardHandle, BoardProps>(({ onAction, isOpponentBoard = false }, ref) => {
+const Board = forwardRef<BoardHandle, BoardProps>(({ onAction, isOpponentBoard = false, disabled = false }, ref) => {
   const [cells, setCells] = useState<string[]>(Array(100).fill(''));
   const [shipsPlaced, setShipsPlaced] = useState(0);
   const [hits, setHits] = useState(0);
@@ -55,6 +56,8 @@ const Board = forwardRef<BoardHandle, BoardProps>(({ onAction, isOpponentBoard =
   }));
 
   function handlePress(index: number) {
+    if (disabled) return;
+
     if (isOpponentBoard) {
       // When interacting with opponent board, send attack actions (do not modify own cells)
       if (phase !== 'attack' && shipsPlaced < 5) return;
@@ -92,6 +95,7 @@ const Board = forwardRef<BoardHandle, BoardProps>(({ onAction, isOpponentBoard =
           key={index}
           value={value}
           onPress={() => handlePress(index)}
+          disabled={disabled && isOpponentBoard}
         />
       ))}
     </View>
