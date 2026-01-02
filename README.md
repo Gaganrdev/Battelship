@@ -1,4 +1,42 @@
-# Battelship
+# Battleship Game 🚢
+
+A React Native multiplayer Battleship game with ship placement and attack mechanics.
+
+## ✅ Project Status: FIXED & WORKING
+
+### Issues Fixed:
+1. ✅ **Import case mismatch** - Fixed `homeScreen` → `HomeScreen` in App.tsx
+2. ✅ **WebSocket TypeScript errors** - Replaced Node.js `ws` module with React Native compatible WebSocket API
+3. ✅ **Connection handling** - Added proper error handling, connection states, and close functionality
+
+### Current Features:
+- ✨ Home screen with Host/Join options
+- ✨ Ship placement phase (place 5 ships on 10x10 grid)
+- ✨ Attack phase (tap to attack enemy ships)
+- ✨ Win detection (destroy all 5 ships)
+- ✨ Visual feedback with emojis (🚢 ships, ❌ hits, 🌊 misses)
+
+### Known Limitations:
+⚠️ **Multiplayer not fully implemented** - The networking code is set up but not integrated with the game logic. Currently works as single-player only.
+
+### Recommendations for Complete Multiplayer:
+1. Deploy a separate Node.js WebSocket server (can't run server directly in React Native)
+2. Integrate socket connection in GameScreen based on host/join mode
+3. Sync game state between players
+4. Add turn-based logic
+5. Add opponent's board view
+
+## Running the Project:
+
+\`\`\`bash
+npm install
+npm start
+\`\`\`
+
+Then choose:
+- Press `i` for iOS simulator
+- Press `a` for Android emulator
+- Scan QR code for physical device
 
 A lightweight Battleship-style multiplayer game built with React/React Native.
 
@@ -42,6 +80,18 @@ yarn start
 ```
 
 If this is a React Native / Expo project, run the platform-specific commands shown by the dev server (e.g. `npm run ios` / `npm run android` or use Expo).
+
+### Running the local WebSocket server (for multiplayer testing)
+
+1. Start the WebSocket server (runs on port 8080):
+
+```bash
+npm run ws-server
+```
+
+2. Android emulator note: use the host IP `10.0.2.2` when joining from the Android emulator (use `localhost` on iOS simulator).
+
+3. On a physical device, use your machine's LAN IP (e.g. `192.168.x.x`) for the host/join address.
 
 ## Project Structure
 
