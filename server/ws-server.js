@@ -1,7 +1,11 @@
 const WebSocket = require('ws');
 
-const wss = new WebSocket.Server({ port: 8080 }, () => {
-  console.log('WebSocket server is listening on ws://localhost:8080');
+const wss = new WebSocket.Server({ port: 8080, host: '0.0.0.0' }, () => {
+  console.log('WebSocket server is listening on ws://0.0.0.0:8080');
+});
+
+wss.on('error', (err) => {
+  console.error('WebSocket server error:', err);
 });
 
 wss.on('connection', (ws) => {

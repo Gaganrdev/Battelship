@@ -1,4 +1,4 @@
-import { View, StyleSheet, Alert } from 'react-native';
+import { View, StyleSheet, Alert, Vibration } from 'react-native';
 import React, { useState, useImperativeHandle, forwardRef, useEffect } from 'react';
 import Cell from './Cell';
 import Ship from './Ship';
@@ -117,13 +117,6 @@ const Board = forwardRef<BoardHandle, BoardProps>(({ onAction, isOpponentBoard =
       return;
     }
     if (phase === 'placement') {
-      if (draggingShipId !== null) {
-        // attempt to move dragging ship to this start index
-        moveShipTo(draggingShipId, index);
-        setDraggingShipId(null);
-        return;
-      }
-
       placeShipAt(index);
     }
   }
@@ -151,26 +144,63 @@ const Board = forwardRef<BoardHandle, BoardProps>(({ onAction, isOpponentBoard =
   function moveShipTo(id: number, newStart: number) {
     const ship = ships.find((s) => s.id === id);
     if (!ship) return false;
+    
+    // Don't move if start is the same
+    if (ship.positions[0] === newStart) return true;
+    
     // determine orientation from current positions
     const isHoriz = ship.positions.length > 1 && ship.positions[1] - ship.positions[0] === 1;
     const orient = isHoriz ? 'horizontal' : 'vertical';
-    const positions = canPlace(newStart, ship.size, orient);
+    
+    // Check if we can place at new location (temporarily clear old positions for check)
+    const tempCells = cells.map((c, idx) => {
+      if (ship.positions.includes(idx) && c.shipId === id) {
+        const copy = { ...c };
+        delete copy.shipId;
+        return copy;
+      }
+      return { ...c };
+    });
+    
+    // Use temp cells for placement check
+    const positions = canPlaceWithCells(tempCells, newStart, ship.size, orient);
     if (!positions) return false;
 
-    // clear old
-    const newCells = [...cells];
-    ship.positions.forEach((p) => {
-      newCells[p] = { ...newCells[p] };
-      if (newCells[p].shipId === id) delete newCells[p].shipId;
+    // clear old and set new
+    const newCells = cells.map((c, idx) => {
+      const copy = { ...c };
+      if (ship.positions.includes(idx) && c.shipId === id) {
+        delete copy.shipId;
+      }
+      return copy;
     });
-
-    // set new
-    positions.forEach((p) => (newCells[p] = { ...newCells[p], shipId: id }));
+    
+    positions.forEach((p) => {
+      newCells[p] = { ...newCells[p], shipId: id };
+    });
 
     const newShips = ships.map((s) => (s.id === id ? { ...s, positions } : s));
     setShips(newShips);
     setCells(newCells);
     return true;
+  }
+  
+  function canPlaceWithCells(cellsToCheck: CellState[], start: number, size: number, orient: 'horizontal' | 'vertical') {
+    const positions: number[] = [];
+    const row = Math.floor(start / 10);
+    const col = start % 10;
+
+    for (let i = 0; i < size; i++) {
+      const r = orient === 'vertical' ? row + i : row;
+      const c = orient === 'horizontal' ? col + i : col;
+      if (r >= 10 || c >= 10) return null;
+      positions.push(r * 10 + c);
+    }
+    // check overlap
+    for (const p of positions) {
+      if (cellsToCheck[p].shipId !== undefined) return null;
+    }
+    return positions;
   }
 
   function toggleShipOrientation(id: number) {
@@ -179,16 +209,35 @@ const Board = forwardRef<BoardHandle, BoardProps>(({ onAction, isOpponentBoard =
     const start = ship.positions[0];
     const currentOrient = ship.positions.length > 1 && ship.positions[1] - ship.positions[0] === 1 ? 'horizontal' : 'vertical';
     const newOrient = currentOrient === 'horizontal' ? 'vertical' : 'horizontal';
-    const positions = canPlace(start, ship.size, newOrient);
-    if (!positions) return; // cannot toggle here
+    
+    // Check if we can place at new orientation (temporarily clear old positions for check)
+    const tempCells = cells.map((c, idx) => {
+      if (ship.positions.includes(idx) && c.shipId === id) {
+        const copy = { ...c };
+        delete copy.shipId;
+        return copy;
+      }
+      return { ...c };
+    });
+    
+    const positions = canPlaceWithCells(tempCells, start, ship.size, newOrient);
+    if (!positions) {
+      Vibration.vibrate([0, 50, 50, 50]); // vibrate pattern to indicate failure
+      return;
+    }
 
     // clear old and set new
-    const newCells = [...cells];
-    ship.positions.forEach((p) => {
-      newCells[p] = { ...newCells[p] };
-      if (newCells[p].shipId === id) delete newCells[p].shipId;
+    const newCells = cells.map((c, idx) => {
+      const copy = { ...c };
+      if (ship.positions.includes(idx) && c.shipId === id) {
+        delete copy.shipId;
+      }
+      return copy;
     });
-    positions.forEach((p) => (newCells[p] = { ...newCells[p], shipId: id }));
+    
+    positions.forEach((p) => {
+      newCells[p] = { ...newCells[p], shipId: id };
+    });
 
     const newShips = ships.map((s) => (s.id === id ? { ...s, positions } : s));
     setShips(newShips);
@@ -226,7 +275,9 @@ const Board = forwardRef<BoardHandle, BoardProps>(({ onAction, isOpponentBoard =
             orientation={isHoriz ? 'horizontal' : 'vertical'}
             cellSize={cellSize}
             onPress={() => toggleShipOrientation(s.id)}
-            onLongPress={() => setDraggingShipId(s.id)}
+            onDragStart={() => setDraggingShipId(s.id)}
+            onDrop={(newStart: number) => { moveShipTo(s.id, newStart); setDraggingShipId(null); }}
+            selected={draggingShipId === s.id}
           />
         );
       })}
