@@ -37,65 +37,65 @@ export default function Ship({ size, startIndex, orientation, cellSize, onPress,
     dragDistance.current = 0;
   }, [startIndex, orientation, size]); // Don't include pan in deps
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (_, gestureState) => {
-        const distance = Math.sqrt(gestureState.dx * gestureState.dx + gestureState.dy * gestureState.dy);
-        return distance > 5;
-      },
-      onPanResponderGrant: () => {
-        dragStartTime.current = Date.now();
-        dragDistance.current = 0;
-        setIsDragging(true);
-        pan.setOffset({ x: (pan.x as any)._value ?? 0, y: (pan.y as any)._value ?? 0 });
-        pan.setValue({ x: 0, y: 0 });
-        Vibration.vibrate(30);
-        if (onDragStart) onDragStart();
-      },
-      onPanResponderMove: (e, gestureState) => {
-        dragDistance.current = Math.sqrt(gestureState.dx * gestureState.dx + gestureState.dy * gestureState.dy);
-        pan.setValue({ x: gestureState.dx, y: gestureState.dy });
-      },
-      onPanResponderRelease: (_, gesture) => {
-        const dragDuration = Date.now() - dragStartTime.current;
-        const wasTap = dragDuration < 200 && dragDistance.current < 10;
-        
-        // Immediately flatten and reset to prevent offset accumulation
-        pan.flattenOffset();
-        
-        setIsDragging(false);
-        
-        if (wasTap) {
-          // This was a tap, trigger orientation toggle
-          Vibration.vibrate(20);
-          pan.setValue({ x: 0, y: 0 });
-          if (onPress) {
-            console.log('Tap to toggle orientation for ship ID', id, 'at index', startIndex);
-            onPress();
-          }
-        } else {
-          // This was a drag, compute drop cell
-          const finalLeft = left + gesture.dx;
-          const finalTop = top + gesture.dy;
-          const newCol = Math.round(finalLeft / cellSize);
-          const newRow = Math.round(finalTop / cellSize);
-          const boundedCol = Math.max(0, Math.min(9, newCol));
-          const boundedRow = Math.max(0, Math.min(9, newRow));
-          const newStart = boundedRow * 10 + boundedCol;
-          
-          console.log('Drop ship ID', id, 'from', startIndex, 'to', newStart, 'dx:', gesture.dx, 'dy:', gesture.dy);
-          
-          // CRITICAL: Reset pan BEFORE calling onDrop
-          pan.setValue({ x: 0, y: 0 });
-          
-          if (onDrop) {
-            onDrop(newStart);
-          }
+  const panResponder = PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: (_, gestureState) => {
+      const distance = Math.sqrt(gestureState.dx * gestureState.dx + gestureState.dy * gestureState.dy);
+      return distance > 5;
+    },
+    onPanResponderGrant: () => {
+      dragStartTime.current = Date.now();
+      dragDistance.current = 0;
+      setIsDragging(true);
+      pan.setOffset({ x: (pan.x as any)._value ?? 0, y: (pan.y as any)._value ?? 0 });
+      pan.setValue({ x: 0, y: 0 });
+      Vibration.vibrate(30);
+      if (onDragStart) onDragStart();
+    },
+    onPanResponderMove: (e, gestureState) => {
+      dragDistance.current = Math.sqrt(gestureState.dx * gestureState.dx + gestureState.dy * gestureState.dy);
+      pan.setValue({ x: gestureState.dx, y: gestureState.dy });
+    },
+    onPanResponderRelease: (_, gesture) => {
+      const dragDuration = Date.now() - dragStartTime.current;
+      const wasTap = dragDuration < 200 && dragDistance.current < 10;
+      
+      setIsDragging(false);
+      
+      // CRITICAL: Reset offset AND value immediately, don't flatten
+      pan.setOffset({ x: 0, y: 0 });
+      pan.setValue({ x: 0, y: 0 });
+      
+      if (wasTap) {
+        // This was a tap, trigger orientation toggle
+        Vibration.vibrate(20);
+        if (onPress) {
+          console.log('Tap to toggle orientation for ship ID', id, 'at index', startIndex);
+          onPress();
         }
-      },
-    })
-  ).current;
+      } else {
+        // This was a drag, compute drop cell using CURRENT left/top values
+        const currentRow = Math.floor(startIndex / 10);
+        const currentCol = startIndex % 10;
+        const currentLeft = currentCol * cellSize;
+        const currentTop = currentRow * cellSize;
+        
+        const finalLeft = currentLeft + gesture.dx;
+        const finalTop = currentTop + gesture.dy;
+        const newCol = Math.round(finalLeft / cellSize);
+        const newRow = Math.round(finalTop / cellSize);
+        const boundedCol = Math.max(0, Math.min(9, newCol));
+        const boundedRow = Math.max(0, Math.min(9, newRow));
+        const newStart = boundedRow * 10 + boundedCol;
+        
+        console.log('Drop ship ID', id, 'from', startIndex, 'to', newStart, 'dx:', gesture.dx, 'dy:', gesture.dy);
+        
+        if (onDrop) {
+          onDrop(newStart);
+        }
+      }
+    },
+  });
 
   return (
     <Animated.View
@@ -110,7 +110,7 @@ export default function Ship({ size, startIndex, orientation, cellSize, onPress,
     >
       <View style={[styles.ship, { backgroundColor: color, width: '100%', height: '100%' }]} />
       {/* Debug: Show ship ID when selected */}
-      {selected && <View style={{ position: 'absolute', top: 2, left: 2, backgroundColor: 'white', padding: 2, borderRadius: 2 }}><Text style={{ fontSize: 8 }}>ID:{startIndex}</Text></View>}
+      {selected && <View style={{ position: 'absolute', top: 2, left: 2, backgroundColor: 'white', padding: 2, borderRadius: 2 }}><Text style={{ fontSize: 8 }}>ID:{id}</Text></View>}
     </Animated.View>
   );
 }
