@@ -4,13 +4,14 @@ import { hostGame, joinGame, sendMessage, closeConnection } from '../network/soc
 import Board, { BoardHandle } from '../components/Board';
 
 export default function GameScreen({ route }: any) {
-  const { mode } = route.params;
+  const { mode, hostIp } = route.params;
 
   const ownBoardRef = useRef<BoardHandle | null>(null);
   const opponentBoardRef = useRef<BoardHandle | null>(null);
   const [isMyTurn, setIsMyTurn] = useState<boolean>(false);
   const [opponentReady, setOpponentReady] = useState<boolean>(false);
   const [ownReady, setOwnReady] = useState<boolean>(false);
+  const [connected, setConnected] = useState<boolean>(false);
   const [placingInfo, setPlacingInfo] = useState<{ size: number | null; index: number | null; orientation: 'horizontal' | 'vertical' | null }>({ size: null, index: null, orientation: null });
 
     useEffect(() => {
@@ -49,16 +50,15 @@ export default function GameScreen({ route }: any) {
       };
 
       if (mode === 'host') {
-        hostGame(onMessage);
+        hostGame(onMessage, undefined, () => setConnected(true), () => setConnected(false));
       } else if (mode === 'join') {
-        // For join, user should provide IP; using localhost for now
-        joinGame('localhost', onMessage);
+        joinGame(hostIp || 'localhost', onMessage, () => setConnected(true), () => setConnected(false));
       }
 
       return () => {
         closeConnection();
       };
-    }, [mode]);
+    }, [mode, hostIp]);
 
     function handleAction(action: any) {
       console.log('Outgoing action:', action);
@@ -98,6 +98,11 @@ export default function GameScreen({ route }: any) {
 
   return (
     <View style={styles.container}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+        <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: connected ? '#0f0' : '#f00', marginRight: 8 }} />
+        <Text style={{ fontSize: 14 }}>{connected ? 'Connected' : 'Disconnected'}</Text>
+      </View>
+      
       <Text style={styles.text}>Place ships by tapping cells</Text>
 
       <Text style={{ fontSize: 18, marginTop: 8, color: isMyTurn ? 'green' : 'gray' }}>

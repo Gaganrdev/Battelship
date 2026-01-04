@@ -40,6 +40,7 @@ const Board = forwardRef<BoardHandle, BoardProps>(({ onAction, isOpponentBoard =
   const [orientation, setOrientation] = useState<'horizontal' | 'vertical'>('horizontal');
   const [phase, setPhase] = useState<Phase>('placement');
   const [draggingShipId, setDraggingShipId] = useState<number | null>(null);
+  const [updateCounter, setUpdateCounter] = useState(0); // Force re-render counter
 
   useImperativeHandle(ref, () => ({
     applyRemoteAttack(index: number) {
@@ -128,8 +129,12 @@ const Board = forwardRef<BoardHandle, BoardProps>(({ onAction, isOpponentBoard =
     if (!positions) return;
 
     const newShips = [...ships, { id: currentShipIndex, size, positions }];
-    const newCells = [...cells];
-    positions.forEach((p) => (newCells[p] = { ...newCells[p], shipId: currentShipIndex }));
+    const newCells = cells.map((c, idx) => {
+      if (positions.includes(idx)) {
+        return { ...c, shipId: currentShipIndex };
+      }
+      return { ...c };
+    });
 
     setShips(newShips);
     setCells(newCells);
@@ -143,7 +148,10 @@ const Board = forwardRef<BoardHandle, BoardProps>(({ onAction, isOpponentBoard =
 
   function moveShipTo(id: number, newStart: number) {
     const ship = ships.find((s) => s.id === id);
-    if (!ship) return false;
+    if (!ship) {
+      console.warn('Ship not found:', id);
+      return false;
+    }
     
     // Don't move if start is the same
     if (ship.positions[0] === newStart) return true;
@@ -164,24 +172,41 @@ const Board = forwardRef<BoardHandle, BoardProps>(({ onAction, isOpponentBoard =
     
     // Use temp cells for placement check
     const positions = canPlaceWithCells(tempCells, newStart, ship.size, orient);
-    if (!positions) return false;
+    if (!positions) {
+      console.log('Cannot place ship at', newStart);
+      return false;
+    }
 
-    // clear old and set new
+    // Create new ships array with updated positions FIRST
+    const newShips = ships.map((s) => {
+      if (s.id === id) {
+        return { ...s, positions: [...positions] }; // Create new array
+      }
+      return s;
+    });
+
+    // clear old and set new - create completely new cell array
     const newCells = cells.map((c, idx) => {
+      // First copy the cell
       const copy = { ...c };
+      
+      // Clear if this was the old ship position
       if (ship.positions.includes(idx) && c.shipId === id) {
         delete copy.shipId;
       }
+      
+      // Set if this is the new ship position
+      if (positions.includes(idx)) {
+        copy.shipId = id;
+      }
+      
       return copy;
     });
-    
-    positions.forEach((p) => {
-      newCells[p] = { ...newCells[p], shipId: id };
-    });
 
-    const newShips = ships.map((s) => (s.id === id ? { ...s, positions } : s));
+    // Update state atomically
     setShips(newShips);
     setCells(newCells);
+    console.log('Moved ship', id, 'to', newStart, 'positions:', positions);
     return true;
   }
   
@@ -205,10 +230,23 @@ const Board = forwardRef<BoardHandle, BoardProps>(({ onAction, isOpponentBoard =
 
   function toggleShipOrientation(id: number) {
     const ship = ships.find((s) => s.id === id);
-    if (!ship) return;
+    if (!ship) {
+      console.warn('Ship not found for toggle:', id);
+      return;
+    }
     const start = ship.positions[0];
     const currentOrient = ship.positions.length > 1 && ship.positions[1] - ship.positions[0] === 1 ? 'horizontal' : 'vertical';
     const newOrient = currentOrient === 'horizontal' ? 'vertical' : 'horizontal';
+    
+    console.log('Toggle ship', id, 'from', currentOrient, 'to', newOrient, 'current positions:', ship.positions);
+    
+    // Check if new positions would be the same (size 1 ship or already in that orientation somehow)
+    const testPositions = canPlaceWithCells(cells, start, ship.size, newOrient);
+    if (testPositions && JSON.stringify(testPositions.sort()) === JSON.stringify(ship.positions.sort())) {
+      console.log('Orientation would result in same positions, skipping');
+      Vibration.vibrate([0, 50, 50, 50]);
+      return;
+    }
     
     // Check if we can place at new orientation (temporarily clear old positions for check)
     const tempCells = cells.map((c, idx) => {
@@ -222,26 +260,42 @@ const Board = forwardRef<BoardHandle, BoardProps>(({ onAction, isOpponentBoard =
     
     const positions = canPlaceWithCells(tempCells, start, ship.size, newOrient);
     if (!positions) {
+      console.log('Cannot toggle orientation for ship', id);
       Vibration.vibrate([0, 50, 50, 50]); // vibrate pattern to indicate failure
       return;
     }
 
-    // clear old and set new
+    // Create new ships array with updated positions FIRST
+    const newShips = ships.map((s) => {
+      if (s.id === id) {
+        return { ...s, positions: [...positions] }; // Create new array
+      }
+      return s;
+    });
+
+    // clear old and set new - create completely new cell array
     const newCells = cells.map((c, idx) => {
+      // First copy the cell
       const copy = { ...c };
+      
+      // Clear if this was the old ship position
       if (ship.positions.includes(idx) && c.shipId === id) {
         delete copy.shipId;
       }
+      
+      // Set if this is the new ship position
+      if (positions.includes(idx)) {
+        copy.shipId = id;
+      }
+      
       return copy;
     });
-    
-    positions.forEach((p) => {
-      newCells[p] = { ...newCells[p], shipId: id };
-    });
 
-    const newShips = ships.map((s) => (s.id === id ? { ...s, positions } : s));
+    // Update state atomically
     setShips(newShips);
     setCells(newCells);
+    setUpdateCounter(c => c + 1); // Force component update
+    console.log('Toggled ship', id, 'orientation to', newOrient, 'positions:', positions);
   }
 
   // board size constant
@@ -265,18 +319,31 @@ const Board = forwardRef<BoardHandle, BoardProps>(({ onAction, isOpponentBoard =
 
       {/* render ships as overlays on own board */}
       {!isOpponentBoard && ships.map((s) => {
+        // Safety check: ensure ship has valid positions
+        if (!s.positions || s.positions.length === 0) {
+          console.warn('Ship has no positions:', s);
+          return null;
+        }
+        
         const start = s.positions[0];
         const isHoriz = s.positions.length > 1 && s.positions[1] - s.positions[0] === 1;
         return (
           <Ship
-            key={s.id}
+            key={`${s.id}-${updateCounter}`}
+            id={s.id}
             size={s.size}
             startIndex={start}
             orientation={isHoriz ? 'horizontal' : 'vertical'}
             cellSize={cellSize}
             onPress={() => toggleShipOrientation(s.id)}
             onDragStart={() => setDraggingShipId(s.id)}
-            onDrop={(newStart: number) => { moveShipTo(s.id, newStart); setDraggingShipId(null); }}
+            onDrop={(newStart: number) => { 
+              const success = moveShipTo(s.id, newStart); 
+              setDraggingShipId(null);
+              if (!success) {
+                Vibration.vibrate([0, 50, 50, 50]);
+              }
+            }}
             selected={draggingShipId === s.id}
           />
         );

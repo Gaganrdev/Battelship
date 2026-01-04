@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { View, StyleSheet, Animated, PanResponder, Vibration } from 'react-native';
+import { View, StyleSheet, Animated, PanResponder, Vibration, Text } from 'react-native';
 
 type Props = {
   size: number;
@@ -11,9 +11,10 @@ type Props = {
   onDrop?: (newStartIndex: number) => void;
   color?: string;
   selected?: boolean;
+  id?: number; // Add ship ID for debugging
 };
 
-export default function Ship({ size, startIndex, orientation, cellSize, onPress, onDragStart, onDrop, color = '#666', selected = false }: Props) {
+export default function Ship({ size, startIndex, orientation, cellSize, onPress, onDragStart, onDrop, color = '#666', selected = false, id }: Props) {
   const row = Math.floor(startIndex / 10);
   const col = startIndex % 10;
   const width = orientation === 'horizontal' ? cellSize * size : cellSize;
@@ -28,10 +29,13 @@ export default function Ship({ size, startIndex, orientation, cellSize, onPress,
 
   useEffect(() => {
     // reset position when startIndex/orientation changes
+    // IMPORTANT: Reset both value AND offset to prevent invisible ships
+    console.log('Ship ID', id, '(size', size, ') reset at index', startIndex, 'orientation', orientation, 'left:', left, 'top:', top);
+    pan.setOffset({ x: 0, y: 0 });
     pan.setValue({ x: 0, y: 0 });
     setIsDragging(false);
     dragDistance.current = 0;
-  }, [startIndex, orientation, size]);
+  }, [startIndex, orientation, size]); // Don't include pan in deps
 
   const panResponder = useRef(
     PanResponder.create({
@@ -57,14 +61,19 @@ export default function Ship({ size, startIndex, orientation, cellSize, onPress,
         const dragDuration = Date.now() - dragStartTime.current;
         const wasTap = dragDuration < 200 && dragDistance.current < 10;
         
+        // Immediately flatten and reset to prevent offset accumulation
         pan.flattenOffset();
+        
         setIsDragging(false);
         
         if (wasTap) {
           // This was a tap, trigger orientation toggle
           Vibration.vibrate(20);
-          if (onPress) onPress();
-          Animated.spring(pan, { toValue: { x: 0, y: 0 }, useNativeDriver: false }).start();
+          pan.setValue({ x: 0, y: 0 });
+          if (onPress) {
+            console.log('Tap to toggle orientation for ship ID', id, 'at index', startIndex);
+            onPress();
+          }
         } else {
           // This was a drag, compute drop cell
           const finalLeft = left + gesture.dx;
@@ -74,8 +83,15 @@ export default function Ship({ size, startIndex, orientation, cellSize, onPress,
           const boundedCol = Math.max(0, Math.min(9, newCol));
           const boundedRow = Math.max(0, Math.min(9, newRow));
           const newStart = boundedRow * 10 + boundedCol;
-          if (onDrop) onDrop(newStart);
-          Animated.spring(pan, { toValue: { x: 0, y: 0 }, useNativeDriver: false }).start();
+          
+          console.log('Drop ship ID', id, 'from', startIndex, 'to', newStart, 'dx:', gesture.dx, 'dy:', gesture.dy);
+          
+          // CRITICAL: Reset pan BEFORE calling onDrop
+          pan.setValue({ x: 0, y: 0 });
+          
+          if (onDrop) {
+            onDrop(newStart);
+          }
         }
       },
     })
@@ -93,6 +109,8 @@ export default function Ship({ size, startIndex, orientation, cellSize, onPress,
       ]}
     >
       <View style={[styles.ship, { backgroundColor: color, width: '100%', height: '100%' }]} />
+      {/* Debug: Show ship ID when selected */}
+      {selected && <View style={{ position: 'absolute', top: 2, left: 2, backgroundColor: 'white', padding: 2, borderRadius: 2 }}><Text style={{ fontSize: 8 }}>ID:{startIndex}</Text></View>}
     </Animated.View>
   );
 }
@@ -102,18 +120,21 @@ const styles = StyleSheet.create({
     position: 'absolute',
     zIndex: 2,
     borderRadius: 4,
-    overflow: 'hidden',
+    overflow: 'visible', // Changed from 'hidden' to allow shadow to show
   },
   ship: {
     opacity: 0.9,
+    borderRadius: 4,
   },
   selected: {
     borderWidth: 2,
     borderColor: '#0af',
+    zIndex: 999, // Ensure selected ship is on top
   },
   dragging: {
     opacity: 0.8,
-    elevation: 5,
+    elevation: 10,
+    zIndex: 999, // Ensure dragging ship is on top
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
