@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="2048" height="2048" viewBox="0 0 2048 2048" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="2048" height="2048" fill="#1a4d7a" rx="204.8"/>
+  
+  <!-- Water waves at bottom -->
+  <path d="M 0,1536 Q 256,1474.56 512,1536 T 1024,1536 T 1536,1536 T 2048,1536 L 2048,2048 L 0,2048 Z" fill="#0c2d4a" opacity="0.6"/>
+  
+  <!-- Battleship body -->
+  <rect x="512" y="1126.4" width="1024" height="307.2" fill="#4a5568" rx="40.96"/>
+  
+  <!-- Ship superstructure -->
+  <rect x="716.8" y="921.6" width="614.4" height="245.76" fill="#5a6778" rx="20.48"/>
+  
+  <!-- Command tower -->
+  <rect x="860.16" y="716.8" width="327.68" height="245.76" fill="#6a7888" rx="20.48"/>
+  
+  <!-- Front gun turret -->
+  <circle cx="716.8" cy="1024" r="102.4" fill="#3a4552"/>
+  <rect x="655.36" y="983.04" width="307.2" height="51.2" fill="#2a3542"/>
+  
+  <!-- Rear gun turret -->
+  <circle cx="1331.2" cy="1024" r="102.4" fill="#3a4552"/>
+  <rect x="1085.44" y="983.04" width="307.2" height="51.2" fill="#2a3542"/>
+  
+  <!-- Radar/antenna -->
+  <rect x="993.28" y="614.4" width="61.44" height="102.4" fill="#8a9aaa"/>
+  <circle cx="1024" cy="614.4" r="40.96" fill="#ff6b6b"/>
+  
+  <!-- Windows -->
+  <rect x="901.12" y="757.76" width="81.92" height="61.44" fill="#4ecdc4" opacity="0.8"/>
+  <rect x="1064.96" y="757.76" width="81.92" height="61.44" fill="#4ecdc4" opacity="0.8"/>
+  
+  <!-- Grid overlay (battleship game reference) -->
+  <g opacity="0.15" stroke="#ffffff" stroke-width="10.24" fill="none">
+    <line x1="307.2" y1="307.2" x2="1740.8" y2="307.2"/>
+    <line x1="307.2" y1="614.4" x2="1740.8" y2="614.4"/>
+    <line x1="307.2" y1="921.5999999999999" x2="1740.8" y2="921.5999999999999"/>
+    <line x1="307.2" y1="1228.8" x2="1740.8" y2="1228.8"/>
+    <line x1="307.2" y1="307.2" x2="307.2" y2="1433.6"/>
+    <line x1="665.5999999999999" y1="307.2" x2="665.5999999999999" y2="1433.6"/>
+    <line x1="1024" y1="307.2" x2="1024" y2="1433.6"/>
+    <line x1="1382.3999999999999" y1="307.2" x2="1382.3999999999999" y2="1433.6"/>
+  </g>
+</svg>

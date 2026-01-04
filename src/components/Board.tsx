@@ -5,7 +5,7 @@ import Ship from './Ship';
 
 type Phase = 'placement' | 'attack' | 'gameover';
 
-type BoardAction = { type: string; index?: number; positions?: number[]; hit?: boolean; size?: number; orientation?: 'horizontal' | 'vertical' };
+type BoardAction = { type: string; index?: number; positions?: number[]; hit?: boolean; size?: number; orientation?: 'horizontal' | 'vertical'; winner?: string };
 
 type CellState = {
   shipId?: number;
@@ -29,6 +29,8 @@ export type BoardHandle = {
   applyRemoteAttack: (index: number) => boolean;
   applyAttackResult: (index: number, hit: boolean) => void;
   getCurrentShip: () => { size: number | null; index: number | null; orientation: 'horizontal' | 'vertical' };
+  isReadyToStart: () => boolean;
+  markReady: () => void;
 };
 
 const defaultShipSizes = [5, 4, 3, 3, 2];
@@ -64,6 +66,8 @@ const Board = forwardRef<BoardHandle, BoardProps>(({ onAction, isOpponentBoard =
         if (totalHits >= totalShipCells) {
           setPhase('gameover');
           Alert.alert('💥 You Lost', 'All your ships were destroyed');
+          // Notify parent to tell opponent they won
+          if (onAction) onAction({ type: 'game_over', winner: 'opponent' });
         }
       }
 
@@ -78,6 +82,15 @@ const Board = forwardRef<BoardHandle, BoardProps>(({ onAction, isOpponentBoard =
     getCurrentShip() {
       if (currentShipIndex >= defaultShipSizes.length) return { size: null, index: null, orientation };
       return { size: defaultShipSizes[currentShipIndex], index: currentShipIndex, orientation };
+    },
+    isReadyToStart() {
+      return ships.length >= defaultShipSizes.length;
+    },
+    markReady() {
+      if (ships.length >= defaultShipSizes.length) {
+        setPhase('attack');
+        if (onAction) onAction({ type: 'ready' });
+      }
     },
   }));
 
@@ -140,18 +153,17 @@ const Board = forwardRef<BoardHandle, BoardProps>(({ onAction, isOpponentBoard =
     setCells(newCells);
     setCurrentShipIndex((s) => s + 1);
 
+    // Don't auto-ready, wait for user to click ready button
     if (currentShipIndex + 1 >= defaultShipSizes.length) {
       setPhase('attack');
-      if (onAction) onAction({ type: 'ready' });
+      // Notify that all ships are placed
+      if (onAction) onAction({ type: 'all_ships_placed' });
     }
   }
 
   function moveShipTo(id: number, newStart: number) {
     const ship = ships.find((s) => s.id === id);
-    if (!ship) {
-      console.warn('Ship not found:', id);
-      return false;
-    }
+    if (!ship) return false;
     
     // Don't move if start is the same
     if (ship.positions[0] === newStart) return true;
@@ -172,10 +184,7 @@ const Board = forwardRef<BoardHandle, BoardProps>(({ onAction, isOpponentBoard =
     
     // Use temp cells for placement check
     const positions = canPlaceWithCells(tempCells, newStart, ship.size, orient);
-    if (!positions) {
-      console.log('Cannot place ship at', newStart);
-      return false;
-    }
+    if (!positions) return false;
 
     // Create new ships array with updated positions FIRST
     const newShips = ships.map((s) => {
@@ -206,7 +215,6 @@ const Board = forwardRef<BoardHandle, BoardProps>(({ onAction, isOpponentBoard =
     // Update state atomically
     setShips(newShips);
     setCells(newCells);
-    console.log('Moved ship', id, 'to', newStart, 'positions:', positions);
     return true;
   }
   
@@ -230,20 +238,15 @@ const Board = forwardRef<BoardHandle, BoardProps>(({ onAction, isOpponentBoard =
 
   function toggleShipOrientation(id: number) {
     const ship = ships.find((s) => s.id === id);
-    if (!ship) {
-      console.warn('Ship not found for toggle:', id);
-      return;
-    }
+    if (!ship) return;
+    
     const start = ship.positions[0];
     const currentOrient = ship.positions.length > 1 && ship.positions[1] - ship.positions[0] === 1 ? 'horizontal' : 'vertical';
     const newOrient = currentOrient === 'horizontal' ? 'vertical' : 'horizontal';
     
-    console.log('Toggle ship', id, 'from', currentOrient, 'to', newOrient, 'current positions:', ship.positions);
-    
     // Check if new positions would be the same (size 1 ship or already in that orientation somehow)
     const testPositions = canPlaceWithCells(cells, start, ship.size, newOrient);
     if (testPositions && JSON.stringify(testPositions.sort()) === JSON.stringify(ship.positions.sort())) {
-      console.log('Orientation would result in same positions, skipping');
       Vibration.vibrate([0, 50, 50, 50]);
       return;
     }
@@ -260,7 +263,6 @@ const Board = forwardRef<BoardHandle, BoardProps>(({ onAction, isOpponentBoard =
     
     const positions = canPlaceWithCells(tempCells, start, ship.size, newOrient);
     if (!positions) {
-      console.log('Cannot toggle orientation for ship', id);
       Vibration.vibrate([0, 50, 50, 50]); // vibrate pattern to indicate failure
       return;
     }
@@ -295,7 +297,6 @@ const Board = forwardRef<BoardHandle, BoardProps>(({ onAction, isOpponentBoard =
     setShips(newShips);
     setCells(newCells);
     setUpdateCounter(c => c + 1); // Force component update
-    console.log('Toggled ship', id, 'orientation to', newOrient, 'positions:', positions);
   }
 
   // board size constant
@@ -321,7 +322,6 @@ const Board = forwardRef<BoardHandle, BoardProps>(({ onAction, isOpponentBoard =
       {!isOpponentBoard && ships.map((s) => {
         // Safety check: ensure ship has valid positions
         if (!s.positions || s.positions.length === 0) {
-          console.warn('Ship has no positions:', s);
           return null;
         }
         

@@ -30,7 +30,6 @@ export default function Ship({ size, startIndex, orientation, cellSize, onPress,
   useEffect(() => {
     // reset position when startIndex/orientation changes
     // IMPORTANT: Reset both value AND offset to prevent invisible ships
-    console.log('Ship ID', id, '(size', size, ') reset at index', startIndex, 'orientation', orientation, 'left:', left, 'top:', top);
     pan.setOffset({ x: 0, y: 0 });
     pan.setValue({ x: 0, y: 0 });
     setIsDragging(false);
@@ -70,7 +69,6 @@ export default function Ship({ size, startIndex, orientation, cellSize, onPress,
         // This was a tap, trigger orientation toggle
         Vibration.vibrate(20);
         if (onPress) {
-          console.log('Tap to toggle orientation for ship ID', id, 'at index', startIndex);
           onPress();
         }
       } else {
@@ -87,8 +85,6 @@ export default function Ship({ size, startIndex, orientation, cellSize, onPress,
         const boundedCol = Math.max(0, Math.min(9, newCol));
         const boundedRow = Math.max(0, Math.min(9, newRow));
         const newStart = boundedRow * 10 + boundedCol;
-        
-        console.log('Drop ship ID', id, 'from', startIndex, 'to', newStart, 'dx:', gesture.dx, 'dy:', gesture.dy);
         
         if (onDrop) {
           onDrop(newStart);
@@ -109,8 +105,6 @@ export default function Ship({ size, startIndex, orientation, cellSize, onPress,
       ]}
     >
       <View style={[styles.ship, { backgroundColor: color, width: '100%', height: '100%' }]} />
-      {/* Debug: Show ship ID when selected */}
-      {selected && <View style={{ position: 'absolute', top: 2, left: 2, backgroundColor: 'white', padding: 2, borderRadius: 2 }}><Text style={{ fontSize: 8 }}>ID:{id}</Text></View>}
     </Animated.View>
   );
 }

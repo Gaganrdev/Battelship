@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Battelship",
+    "name": "Battleship",
     "slug": "Battelship",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -9,7 +9,7 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#1a4d7a"
     },
     "ios": {
       "supportsTablet": true,
@@ -18,7 +18,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#1a4d7a"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
