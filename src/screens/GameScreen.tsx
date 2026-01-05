@@ -4,7 +4,7 @@ import { hostGame, joinGame, sendMessage, closeConnection } from '../network/soc
 import Board, { BoardHandle } from '../components/Board';
 
 export default function GameScreen({ route }: any) {
-  const { mode, hostIp } = route.params;
+  const { mode, serverIp } = route.params;
 
   const ownBoardRef = useRef<BoardHandle | null>(null);
   const opponentBoardRef = useRef<BoardHandle | null>(null);
@@ -57,15 +57,15 @@ export default function GameScreen({ route }: any) {
       };
 
       if (mode === 'host') {
-        hostGame(onMessage, undefined, () => setConnected(true), () => setConnected(false));
+        hostGame(onMessage, `ws://${serverIp}:8080`, () => setConnected(true), () => setConnected(false));
       } else if (mode === 'join') {
-        joinGame(hostIp || 'localhost', onMessage, () => setConnected(true), () => setConnected(false));
+        joinGame(serverIp, onMessage, () => setConnected(true), () => setConnected(false));
       }
 
       return () => {
         closeConnection();
       };
-    }, [mode, hostIp]);
+    }, [mode, serverIp]);
 
     function handleAction(action: any) {
       console.log('Outgoing action:', action);
