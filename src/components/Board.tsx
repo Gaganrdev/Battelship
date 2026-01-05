@@ -61,6 +61,20 @@ const Board = forwardRef<BoardHandle, BoardProps>(({ onAction, isOpponentBoard =
 
       // check lose condition
       if (hit) {
+        // Check if a ship was destroyed
+        const hitShip = ships.find(s => s.id === c.shipId);
+        if (hitShip) {
+          const shipHits = newCells.filter((cell, idx) => 
+            cell.shipId === hitShip.id && cell.hit
+          ).length;
+          
+          if (shipHits === hitShip.size) {
+            // Ship destroyed!
+            Vibration.vibrate([0, 100, 50, 100]);
+            if (onAction) onAction({ type: 'ship_destroyed', size: hitShip.size });
+          }
+        }
+        
         const totalHits = newCells.filter((x) => x.hit).length;
         const totalShipCells = ships.reduce((s, sh) => s + sh.size, 0);
         if (totalHits >= totalShipCells) {
@@ -127,6 +141,11 @@ const Board = forwardRef<BoardHandle, BoardProps>(({ onAction, isOpponentBoard =
 
     if (isOpponentBoard) {
       if (phase !== 'attack') return;
+      // Don't allow attacking the same cell twice
+      if (cells[index].hit || cells[index].miss) {
+        Vibration.vibrate([0, 50, 50, 50]); // Error vibration
+        return;
+      }
       if (onAction) onAction({ type: 'attack', index });
       return;
     }

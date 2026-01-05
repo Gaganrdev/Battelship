@@ -25,11 +25,11 @@ export function connectToServer(
 
   socket.onerror = (error) => {
     console.error('❌ WebSocket error:', error);
-    if (onDisconnect) onDisconnect();
+    // Don't call onDisconnect here - wait for onclose
   };
 
-  socket.onclose = () => {
-    console.log('🔌 WebSocket connection closed');
+  socket.onclose = (event) => {
+    console.log('🔌 WebSocket connection closed. Code:', event.code, 'Reason:', event.reason);
     if (onDisconnect) onDisconnect();
   };
 }

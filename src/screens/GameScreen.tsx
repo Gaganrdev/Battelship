@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { connectToServer, sendMessage, closeConnection } from '../network/socket';
 import Board, { BoardHandle } from '../components/Board';
 
-export default function GameScreen({ route }: any) {
+export default function GameScreen({ route, navigation }: any) {
   const { serverIp } = route.params;
 
   const ownBoardRef = useRef<BoardHandle | null>(null);
@@ -12,6 +12,8 @@ export default function GameScreen({ route }: any) {
   const [opponentReady, setOpponentReady] = useState<boolean>(false);
   const [ownReady, setOwnReady] = useState<boolean>(false);
   const [connected, setConnected] = useState<boolean>(false);
+  const [bothConnected, setBothConnected] = useState<boolean>(false);
+  const [gameOver, setGameOver] = useState<boolean>(false);
   const [allShipsPlaced, setAllShipsPlaced] = useState<boolean>(false);
   const [placingInfo, setPlacingInfo] = useState<{ size: number | null; index: number | null; orientation: 'horizontal' | 'vertical' | null }>({ size: null, index: null, orientation: null });
 
@@ -43,28 +45,41 @@ export default function GameScreen({ route }: any) {
             }
           } else if (data.type === 'attack_result') {
             // opponent responded to our attack
+            console.log('📨 Got attack_result:', data.index, 'hit:', data.hit);
             if (opponentBoardRef.current) {
               opponentBoardRef.current.applyAttackResult(data.index, data.hit);
             }
             // If we hit, we keep our turn
             // If we missed, opponent gets the turn
-            setIsMyTurn(!!data.hit);
+            const newTurn = !!data.hit;
+            console.log('🎯 Setting our turn to:', newTurn);
+            setIsMyTurn(newTurn);
           } else if (data.type === 'ready') {
             // opponent finished placement
+            console.log('📨 Opponent is ready!');
             setOpponentReady(true);
-            // if we're already ready, WE decide who starts
-            if (ownReady) {
-              const weGoFirst = Math.random() < 0.5;
-              setIsMyTurn(weGoFirst);
-              // Tell opponent who goes first
-              sendMessage({ type: 'start_turn', yourTurn: !weGoFirst });
-            }
+            setBothConnected(true);
+            console.log('✅ Set opponentReady to true');
           } else if (data.type === 'start_turn') {
             // Opponent decided turn order
+            console.log('🎲 Received start_turn:', data.yourTurn);
             setIsMyTurn(data.yourTurn);
           } else if (data.type === 'game_over') {
             // Opponent's game is over, we won!
-            Alert.alert('🎉 Victory!', 'You destroyed all enemy ships!');
+            setGameOver(true);
+            Alert.alert(
+              '🎉 Victory!', 
+              'You destroyed all enemy ships!',
+              [
+                { text: 'Play Again', onPress: () => navigation.navigate('Home') },
+                { text: 'Stay', style: 'cancel' }
+              ]
+            );
+          } else if (data.type === 'ship_destroyed') {
+            // We destroyed one of opponent's ships
+            const shipNames = { 5: 'Carrier', 4: 'Battleship', 3: 'Cruiser/Submarine', 2: 'Destroyer' };
+            const shipName = shipNames[data.size] || `Ship (${data.size})`;
+            Alert.alert('🔥 SHIP DESTROYED! 🔥', `You sank the enemy ${shipName}!`, [{ text: 'Continue Battle!' }]);
           }
       };
 
@@ -79,6 +94,11 @@ export default function GameScreen({ route }: any) {
         closeConnection();
       };
     }, [serverIp]);
+
+    // Debug logging for state changes
+    useEffect(() => {
+      console.log('🔄 State:', { ownReady, opponentReady, isMyTurn, connected });
+    }, [ownReady, opponentReady, isMyTurn, connected]);
 
     function handleAction(action: any) {
       console.log('Outgoing action:', action);
@@ -102,15 +122,26 @@ export default function GameScreen({ route }: any) {
     // handle actions from our own board (placement / ready)
     function handleOwnAction(action: any) {
       if (action.type === 'ready') {
+        console.log('✅ We are ready!');
         setOwnReady(true);
         sendMessage({ type: 'ready' });
-        // if opponent already ready, they will send us start_turn message
+        
+        // if opponent is already ready, WE decide turns and tell them
+        if (opponentReady) {
+          console.log('🎲 Both ready! Deciding turns...');
+          const weGoFirst = Math.random() < 0.5;
+          setIsMyTurn(weGoFirst);
+          console.log('👉 We go first:', weGoFirst);
+          // Tell opponent their turn status
+          sendMessage({ type: 'start_turn', yourTurn: !weGoFirst });
+        }
       } else if (action.type === 'all_ships_placed') {
         setAllShipsPlaced(true);
       } else if (action.type === 'placing') {
         setPlacingInfo({ size: action.size ?? null, index: action.index ?? null, orientation: action.orientation ?? null });
-      } else {
-        // forward placement actions to opponent if needed
+        // Don't send placement info to opponent - it's local only
+      } else if (action.type === 'ship_destroyed' || action.type === 'game_over') {
+        // Forward ship destroyed and game over to opponent
         sendMessage(action);
       }
     }
@@ -128,22 +159,25 @@ export default function GameScreen({ route }: any) {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
           <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: connected ? '#0f0' : '#f00', marginRight: 8 }} />
-          <Text style={{ fontSize: 14 }}>{connected ? 'Connected - Waiting for 2 players' : 'Connecting to server...'}</Text>
+          <Text style={{ fontSize: 14, color: '#000' }}>
+            {!connected ? 'Connecting to server...' : bothConnected ? 'Both players connected!' : 'Waiting for 2nd player...'}
+          </Text>
         </View>
       
       <Text style={styles.text}>Place ships by tapping cells</Text>
 
-      <Text style={{ fontSize: 18, marginTop: 8, color: isMyTurn ? 'green' : 'gray' }}>
+      <Text style={{ fontSize: 18, marginTop: 8, fontWeight: 'bold', color: isMyTurn ? '#2e7d32' : '#666' }}>
         {isMyTurn ? 'Your Turn' : "Opponent's Turn"}
       </Text>
 
       <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
-        <Text style={{ marginRight: 12 }}>Orientation:</Text>
-        <Text style={{ marginRight: 12 }}>{placingInfo.orientation ?? '-'}</Text>
-        <Text>Placing ship size: {placingInfo.size ?? '-'}</Text>
+        <Text style={{ marginRight: 12, color: '#000', fontWeight: '600' }}>Orientation:</Text>
+        <Text style={{ marginRight: 12, color: '#000', fontWeight: 'bold' }}>{placingInfo.orientation ?? '-'}</Text>
+        <Text style={{ color: '#000', fontWeight: '600' }}>Ship size: </Text>
+        <Text style={{ color: '#000', fontWeight: 'bold', fontSize: 16 }}>{placingInfo.size ?? '-'}</Text>
       </View>
 
-      <Text style={{ marginTop: 10 }}>Your Board</Text>
+      <Text style={{ marginTop: 10, fontWeight: 'bold', color: '#000' }}>Your Board</Text>
       <Board ref={ownBoardRef} onAction={handleOwnAction} />
 
       {/* Ready Button */}
@@ -165,7 +199,7 @@ export default function GameScreen({ route }: any) {
       {/* Only show opponent board after both players are ready */}
       {ownReady && opponentReady && (
         <>
-          <Text style={{ marginTop: 16 }}>Opponent Board</Text>
+          <Text style={{ marginTop: 16, fontWeight: 'bold', color: '#000' }}>Opponent Board</Text>
           <View style={{ width: 320, height: 320, position: 'relative' }}>
             <Board ref={opponentBoardRef} isOpponentBoard disabled={!isMyTurn} onAction={handleAction} />
             {!isMyTurn && (
@@ -176,10 +210,19 @@ export default function GameScreen({ route }: any) {
           </View>
 
           <View style={{ flexDirection: 'row', marginTop: 12 }}>
-            <Text style={{ marginRight: 12 }}>You: Ready</Text>
-            <Text>Opponent: Ready</Text>
+            <Text style={{ marginRight: 12, color: '#000', fontWeight: '600' }}>You: Ready</Text>
+            <Text style={{ color: '#000', fontWeight: '600' }}>Opponent: Ready</Text>
           </View>
         </>
+      )}
+
+      {gameOver && (
+        <TouchableOpacity 
+          style={[styles.readyButton, { backgroundColor: '#2196F3', marginTop: 20 }]}
+          onPress={() => navigation.navigate('Home')}
+        >
+          <Text style={styles.readyButtonText}>Return to Home</Text>
+        </TouchableOpacity>
       )}
       </ScrollView>
     </View>

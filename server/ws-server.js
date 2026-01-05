@@ -31,19 +31,26 @@ wss.on('error', (err) => {
 });
 
 wss.on('connection', (ws) => {
-  console.log('Client connected');
+  console.log('Client connected. Total clients:', wss.clients.size);
 
   ws.on('message', (message) => {
-    console.log('Received:', message.toString());
-    // Echo message to all other clients
+    const msgStr = message.toString();
+    console.log('Received:', msgStr);
+    
+    // Relay message to all OTHER clients (not the sender)
+    let relayCount = 0;
     wss.clients.forEach((client) => {
       if (client !== ws && client.readyState === WebSocket.OPEN) {
-        client.send(message.toString());
+        client.send(msgStr);
+        relayCount++;
       }
     });
+    console.log(`Relayed to ${relayCount} other client(s)`);
   });
 
-  ws.on('close', () => console.log('Client disconnected'));
+  ws.on('close', () => {
+    console.log('Client disconnected. Remaining clients:', wss.clients.size);
+  });
 });
 
 process.on('SIGINT', () => {
