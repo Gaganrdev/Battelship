@@ -1,10 +1,10 @@
 import { View, Text, StyleSheet, Alert, TouchableOpacity, ScrollView } from 'react-native';
 import { useEffect, useRef, useState } from 'react';
-import { hostGame, joinGame, sendMessage, closeConnection } from '../network/socket';
+import { hostGame, joinGame, sendMessage, closeConnection } from '../network/peerConnection';
 import Board, { BoardHandle } from '../components/Board';
 
 export default function GameScreen({ route }: any) {
-  const { mode, serverIp } = route.params;
+  const { mode, roomId } = route.params;
 
   const ownBoardRef = useRef<BoardHandle | null>(null);
   const opponentBoardRef = useRef<BoardHandle | null>(null);
@@ -57,15 +57,15 @@ export default function GameScreen({ route }: any) {
       };
 
       if (mode === 'host') {
-        hostGame(onMessage, `ws://${serverIp}:8080`, () => setConnected(true), () => setConnected(false));
+        hostGame(roomId, onMessage, () => setConnected(true), () => setConnected(false));
       } else if (mode === 'join') {
-        joinGame(serverIp, onMessage, () => setConnected(true), () => setConnected(false));
+        joinGame(roomId, onMessage, () => setConnected(true), () => setConnected(false));
       }
 
       return () => {
         closeConnection();
       };
-    }, [mode, serverIp]);
+    }, [mode, roomId]);
 
     function handleAction(action: any) {
       console.log('Outgoing action:', action);
@@ -118,8 +118,16 @@ export default function GameScreen({ route }: any) {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
           <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: connected ? '#0f0' : '#f00', marginRight: 8 }} />
-          <Text style={{ fontSize: 14 }}>{connected ? 'Connected' : 'Disconnected'}</Text>
+          <Text style={{ fontSize: 14 }}>{connected ? 'Connected' : 'Waiting for connection...'}</Text>
         </View>
+
+        {mode === 'host' && (
+          <View style={styles.roomCodeBox}>
+            <Text style={styles.roomCodeLabel}>Room Code:</Text>
+            <Text style={styles.roomCode}>{roomId}</Text>
+            <Text style={styles.roomCodeHint}>Share this code with your opponent</Text>
+          </View>
+        )}
       
       <Text style={styles.text}>Place ships by tapping cells</Text>
 
@@ -217,5 +225,30 @@ const styles = StyleSheet.create({
   waitingText: {
     color: '#856404',
     fontSize: 16,
+  },
+  roomCodeBox: {
+    backgroundColor: '#E3F2FD',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+    borderWidth: 2,
+    borderColor: '#2196F3',
+    alignItems: 'center',
+  },
+  roomCodeLabel: {
+    fontSize: 14,
+    color: '#1976D2',
+    marginBottom: 4,
+  },
+  roomCode: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#0D47A1',
+    letterSpacing: 4,
+  },
+  roomCodeHint: {
+    fontSize: 12,
+    color: '#64B5F6',
+    marginTop: 4,
   },
 });

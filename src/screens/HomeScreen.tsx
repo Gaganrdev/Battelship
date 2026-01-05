@@ -1,47 +1,47 @@
 import { View, Text, Button, StyleSheet, TextInput, Alert } from 'react-native';
 import { useState } from 'react';
+import { generateRoomId } from '../network/peerConnection';
 
 export default function HomeScreen({ navigation }: any) {
-  const [serverIp, setServerIp] = useState('');
+  const [roomId, setRoomId] = useState('');
 
   const handleHost = () => {
-    if (!serverIp.trim()) {
-      Alert.alert('Enter Server IP', 'Please enter your computer\'s IP address where the server is running');
-      return;
-    }
-    navigation.navigate('Game', { mode: 'host', serverIp: serverIp.trim() });
+    // Generate a room ID automatically
+    const newRoomId = generateRoomId();
+    navigation.navigate('Game', { mode: 'host', roomId: newRoomId });
   };
 
   const handleJoin = () => {
-    if (!serverIp.trim()) {
-      Alert.alert('Enter Server IP', 'Please enter the server IP address');
+    if (!roomId.trim()) {
+      Alert.alert('Enter Room Code', 'Please enter the 6-digit room code from the host');
       return;
     }
-    navigation.navigate('Game', { mode: 'join', serverIp: serverIp.trim() });
+    navigation.navigate('Game', { mode: 'join', roomId: roomId.trim().toUpperCase() });
   };
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Battleship</Text>
 
-      <Text style={styles.infoText}>Enter the IP address shown on the server</Text>
-
-      <TextInput
-        style={styles.input}
-        placeholder="e.g., 192.168.1.100"
-        value={serverIp}
-        onChangeText={setServerIp}
-        autoCapitalize="none"
-        autoCorrect={false}
-        keyboardType="numeric"
-      />
+      <Text style={styles.infoText}>🎮 No server needed! Works anywhere with internet.</Text>
 
       <Button
-        title="Host Game"
+        title="🎯 Host Game"
         onPress={handleHost}
       />
 
-      <View style={{ height: 10 }} />
+      <View style={{ height: 20 }} />
+
+      <Text style={styles.label}>Or join with room code:</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="Enter 6-digit code (e.g., ABC123)"
+        value={roomId}
+        onChangeText={setRoomId}
+        autoCapitalize="characters"
+        autoCorrect={false}
+        maxLength={6}
+      />
 
       <Button
         title="Join Game"
