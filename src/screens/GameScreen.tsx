@@ -77,7 +77,7 @@ export default function GameScreen({ route, navigation }: any) {
             );
           } else if (data.type === 'ship_destroyed') {
             // We destroyed one of opponent's ships
-            const shipNames = { 5: 'Carrier', 4: 'Battleship', 3: 'Cruiser/Submarine', 2: 'Destroyer' };
+            const shipNames: { [key: number]: string } = { 5: 'Carrier', 4: 'Battleship', 3: 'Cruiser/Submarine', 2: 'Destroyer' };
             const shipName = shipNames[data.size] || `Ship (${data.size})`;
             Alert.alert('🔥 SHIP DESTROYED! 🔥', `You sank the enemy ${shipName}!`, [{ text: 'Continue Battle!' }]);
           }
