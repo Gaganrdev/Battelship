@@ -40,7 +40,7 @@ const Board = forwardRef<BoardHandle, BoardProps>(({ onAction, isOpponentBoard =
   const [ships, setShips] = useState<Ship[]>([]);
   const [currentShipIndex, setCurrentShipIndex] = useState(0);
   const [orientation, setOrientation] = useState<'horizontal' | 'vertical'>('horizontal');
-  const [phase, setPhase] = useState<Phase>('placement');
+  const [phase, setPhase] = useState<Phase>(isOpponentBoard ? 'attack' : 'placement');
   const [draggingShipId, setDraggingShipId] = useState<number | null>(null);
   const [updateCounter, setUpdateCounter] = useState(0); // Force re-render counter
 

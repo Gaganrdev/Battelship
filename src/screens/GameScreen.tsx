@@ -16,8 +16,18 @@ export default function GameScreen({ route }: any) {
   const [placingInfo, setPlacingInfo] = useState<{ size: number | null; index: number | null; orientation: 'horizontal' | 'vertical' | null }>({ size: null, index: null, orientation: null });
 
     useEffect(() => {
-      const onMessage = (data: any) => {
-        // Socket.io sends objects directly, no need to parse
+      const onMessage = (msg: string) => {
+        // WebSocket sends JSON strings, need to parse
+        let data;
+        try {
+          data = JSON.parse(msg);
+        } catch (e) {
+          console.error('Failed to parse message:', msg);
+          return;
+        }
+        
+        console.log('📨 Received:', data);
+        
         // handle incoming protocol
         if (data.type === 'attack') {
             // opponent is attacking our board
@@ -42,10 +52,16 @@ export default function GameScreen({ route }: any) {
           } else if (data.type === 'ready') {
             // opponent finished placement
             setOpponentReady(true);
-            // if both ready, decide who starts (random)
+            // if we're already ready, WE decide who starts
             if (ownReady) {
-              setIsMyTurn(Math.random() < 0.5);
+              const weGoFirst = Math.random() < 0.5;
+              setIsMyTurn(weGoFirst);
+              // Tell opponent who goes first
+              sendMessage({ type: 'start_turn', yourTurn: !weGoFirst });
             }
+          } else if (data.type === 'start_turn') {
+            // Opponent decided turn order
+            setIsMyTurn(data.yourTurn);
           } else if (data.type === 'game_over') {
             // Opponent's game is over, we won!
             Alert.alert('🎉 Victory!', 'You destroyed all enemy ships!');
@@ -88,10 +104,7 @@ export default function GameScreen({ route }: any) {
       if (action.type === 'ready') {
         setOwnReady(true);
         sendMessage({ type: 'ready' });
-        // if opponent already ready, start turns (random)
-        if (opponentReady) {
-          setIsMyTurn(Math.random() < 0.5);
-        }
+        // if opponent already ready, they will send us start_turn message
       } else if (action.type === 'all_ships_placed') {
         setAllShipsPlaced(true);
       } else if (action.type === 'placing') {
