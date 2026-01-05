@@ -1,8 +1,11 @@
-// Peer-to-peer networking using PeerJS - NO EXTERNAL SERVER NEEDED!
-import Peer from 'peerjs';
+// Room-based networking using Socket.io - Works anywhere!
+import { io, Socket } from 'socket.io-client';
 
-let peer: Peer | null = null;
-let connection: any = null;
+// Use your local relay server (replace with your computer's IP)
+const SERVER_URL = 'http://192.168.1.185:3001'; // Change this to your IP shown in server
+
+let socket: Socket | null = null;
+let currentRoom: string | null = null;
 
 // Generate a unique room ID
 export function generateRoomId(): string {
@@ -16,32 +19,38 @@ export function hostGame(
   onConnect?: () => void,
   onDisconnect?: () => void
 ): string {
-  // Create peer with room ID
-  peer = new Peer(roomId);
-
-  peer.on('open', () => {
-    console.log('Hosting game with room ID:', roomId);
+  currentRoom = roomId;
+  
+  socket = io(SERVER_URL, {
+    transports: ['websocket'],
+    reconnection: true,
   });
 
-  peer.on('connection', (conn) => {
-    console.log('Someone joined the game!');
-    connection = conn;
-
-    conn.on('open', () => {
-      if (onConnect) onConnect();
-    });
-
-    conn.on('data', (data) => {
-      onMessage(data);
-    });
-
-    conn.on('close', () => {
-      if (onDisconnect) onDisconnect();
-    });
+  socket.on('connect', () => {
+    console.log('Connected to server, hosting room:', roomId);
+    socket?.emit('create_room', roomId);
   });
 
-  peer.on('error', (err) => {
-    console.error('Peer error:', err);
+  socket.on('room_created', () => {
+    console.log('Room created successfully');
+  });
+
+  socket.on('player_joined', () => {
+    console.log('Player joined the room!');
+    if (onConnect) onConnect();
+  });
+
+  socket.on('game_message', (data: any) => {
+    onMessage(data);
+  });
+
+  socket.on('disconnect', () => {
+    console.log('Disconnected from server');
+    if (onDisconnect) onDisconnect();
+  });
+
+  socket.on('error', (error: any) => {
+    console.error('Socket error:', error);
     if (onDisconnect) onDisconnect();
   });
 
@@ -55,55 +64,60 @@ export function joinGame(
   onConnect?: () => void,
   onDisconnect?: () => void
 ) {
-  // Create peer with random ID
-  const myId = 'player-' + Math.random().toString(36).substring(2, 9);
-  peer = new Peer(myId);
-
-  peer.on('open', () => {
-    console.log('Connecting to room:', roomId);
-    
-    // Connect to host
-    if (peer) {
-      connection = peer.connect(roomId);
-
-      connection.on('open', () => {
-        console.log('Connected to host!');
-        if (onConnect) onConnect();
-      });
-
-      connection.on('data', (data: any) => {
-        onMessage(data);
-      });
-
-      connection.on('close', () => {
-        if (onDisconnect) onDisconnect();
-      });
-    }
+  currentRoom = roomId;
+  
+  socket = io(SERVER_URL, {
+    transports: ['websocket'],
+    reconnection: true,
   });
 
-  peer.on('error', (err) => {
-    console.error('Peer error:', err);
+  socket.on('connect', () => {
+    console.log('Connected to server, joining room:', roomId);
+    socket?.emit('join_room', roomId);
+  });
+
+  socket.on('room_joined', () => {
+    console.log('Successfully joined room!');
+    if (onConnect) onConnect();
+  });
+
+  socket.on('room_not_found', () => {
+    console.error('Room not found!');
+    if (onDisconnect) onDisconnect();
+  });
+
+  socket.on('game_message', (data: any) => {
+    onMessage(data);
+  });
+
+  socket.on('disconnect', () => {
+    console.log('Disconnected from server');
+    if (onDisconnect) onDisconnect();
+  });
+
+  socket.on('error', (error: any) => {
+    console.error('Socket error:', error);
     if (onDisconnect) onDisconnect();
   });
 }
 
 // SEND message
 export function sendMessage(data: any) {
-  if (connection && connection.open) {
-    connection.send(data);
+  if (socket && socket.connected && currentRoom) {
+    socket.emit('game_message', {
+      room: currentRoom,
+      data: data,
+    });
   } else {
-    console.warn('Connection is not open');
+    console.warn('Socket is not connected');
   }
 }
 
 // CLOSE connection
 export function closeConnection() {
-  if (connection) {
-    connection.close();
+  if (socket) {
+    socket.disconnect();
   }
-  if (peer) {
-    peer.destroy();
-  }
-  peer = null;
-  connection = null;
+  socket = null;
+  currentRoom = null;
 }
