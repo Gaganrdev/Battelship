@@ -1,51 +1,36 @@
 import { View, Text, Button, StyleSheet, TextInput, Alert } from 'react-native';
 import { useState } from 'react';
-import { generateRoomId } from '../network/peerConnection';
 
 export default function HomeScreen({ navigation }: any) {
-  const [roomId, setRoomId] = useState('');
+  const [serverIp, setServerIp] = useState('');
 
-  const handleHost = () => {
-    // Generate a room ID automatically
-    const newRoomId = generateRoomId();
-    navigation.navigate('Game', { mode: 'host', roomId: newRoomId });
-  };
-
-  const handleJoin = () => {
-    if (!roomId.trim()) {
-      Alert.alert('Enter Room Code', 'Please enter the 6-digit room code from the host');
+  const handleConnect = () => {
+    if (!serverIp.trim()) {
+      Alert.alert('Enter Server IP', 'Please enter the server IP address shown when you run: npm run ws-server');
       return;
     }
-    navigation.navigate('Game', { mode: 'join', roomId: roomId.trim().toUpperCase() });
+    navigation.navigate('Game', { serverIp: serverIp.trim() });
   };
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Battleship</Text>
 
-      <Text style={styles.infoText}>🎮 No server needed! Works anywhere with internet.</Text>
+      <Text style={styles.infoText}>🎮 Run "npm run ws-server" on your computer</Text>
+      <Text style={styles.infoText}>Both players enter the same IP address</Text>
 
-      <Button
-        title="🎯 Host Game"
-        onPress={handleHost}
-      />
-
-      <View style={{ height: 20 }} />
-
-      <Text style={styles.label}>Or join with room code:</Text>
       <TextInput
         style={styles.input}
-        placeholder="Enter 6-digit code (e.g., ABC123)"
-        value={roomId}
-        onChangeText={setRoomId}
-        autoCapitalize="characters"
+        placeholder="Server IP (e.g., 192.168.1.185)"
+        value={serverIp}
+        onChangeText={setServerIp}
+        autoCapitalize="none"
         autoCorrect={false}
-        maxLength={6}
       />
 
       <Button
-        title="Join Game"
-        onPress={handleJoin}
+        title="Connect & Play"
+        onPress={handleConnect}
       />
     </View>
   );

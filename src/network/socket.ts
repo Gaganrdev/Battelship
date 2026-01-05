@@ -1,66 +1,35 @@
-// React Native WebSocket implementation (browser-compatible)
-import { Platform } from 'react-native';
-
+// React Native WebSocket implementation
 let socket: WebSocket | null = null;
 
-// HOST creates server (Note: In React Native, you'll need a separate Node.js server)
-// This is a client-side implementation. For hosting, deploy a separate WebSocket server.
-export function hostGame(
-  onMessage: (msg: string) => void, 
-  serverUrl: string = 'ws://localhost:8080',
-  onConnect?: () => void,
-  onDisconnect?: () => void
-) {
-  // Don't adjust localhost for host - they should connect to their local server
-  socket = new WebSocket(serverUrl);
-
-  socket.onopen = () => {
-    console.log('Connected to server as host');
-    if (onConnect) onConnect();
-  };
-
-  socket.onmessage = (event) => {
-    onMessage(event.data);
-  };
-
-  socket.onerror = (error) => {
-    console.error('WebSocket error:', error);
-    if (onDisconnect) onDisconnect();
-  };
-
-  socket.onclose = () => {
-    console.log('WebSocket connection closed');
-    if (onDisconnect) onDisconnect();
-  };
-}
-
-// JOIN connects to host IP
-export function joinGame(
-  ip: string, 
+// Both players connect to the same server IP
+export function connectToServer(
+  serverIp: string,
   onMessage: (msg: string) => void,
   onConnect?: () => void,
   onDisconnect?: () => void
 ) {
-  const url = `ws://${ip}:8080`;
+  const url = `ws://${serverIp}:8080`;
+  console.log('🔌 Connecting to:', url);
 
   socket = new WebSocket(url);
 
   socket.onopen = () => {
-    console.log('Connected to game at', ip);
+    console.log('✅ Connected to server');
     if (onConnect) onConnect();
   };
 
   socket.onmessage = (event) => {
+    console.log('📨 Received message:', event.data);
     onMessage(event.data);
   };
 
   socket.onerror = (error) => {
-    console.error('WebSocket error:', error);
+    console.error('❌ WebSocket error:', error);
     if (onDisconnect) onDisconnect();
   };
 
   socket.onclose = () => {
-    console.log('WebSocket connection closed');
+    console.log('🔌 WebSocket connection closed');
     if (onDisconnect) onDisconnect();
   };
 }
